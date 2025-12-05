@@ -70,7 +70,7 @@ func StartWithOptions(opts *Options) (*Server, error) {
 	if opts.ShouldUseReplica {
 		engine = "wiredTiger"
 		args = append(args, "--replSet", "rs0")
-	} else if strings.HasPrefix(opts.MongoVersion, "7.") {
+	} else if strings.HasPrefix(opts.MongoVersion, "7.") || strings.HasPrefix(opts.MongoVersion, "8.") {
 		engine = "wiredTiger"
 	}
 	if engine == "wiredTiger" {
