@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tryvium-travels/memongo/memongolog"
-	"github.com/tryvium-travels/memongo/monitor"
+	"github.com/100mslive/memongo/memongolog"
+	"github.com/100mslive/memongo/monitor"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"

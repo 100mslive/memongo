@@ -3,8 +3,8 @@ package memongo_test
 import (
 	"testing"
 
+	"github.com/100mslive/memongo"
 	"github.com/stretchr/testify/assert"
-	"github.com/tryvium-travels/memongo"
 )
 
 func TestRandomDatabase(t *testing.T) {

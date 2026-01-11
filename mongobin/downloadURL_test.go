@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/100mslive/memongo/mongobin"
 	"github.com/stretchr/testify/assert"
-	"github.com/tryvium-travels/memongo/mongobin"
 )
 
 // Change this to true to issue a HEAD request in each test to make

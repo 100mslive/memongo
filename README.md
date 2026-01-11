@@ -2,7 +2,7 @@
 
 # memongo
 
-[![CI](https://github.com/tryvium-travels/memongo/workflows/Go/badge.svg)](https://github.com/tryvium-travels/memongo/actions?workflow=Go) [![GoDoc](https://godoc.org/github.com/tryvium-travels/memongo?status.svg)](https://godoc.org/github.com/tryvium-travels/memongo) [![Go Report Card](https://goreportcard.com/badge/github.com/tryvium-travels/memongo)](https://goreportcard.com/report/github.com/tryvium-travels/memongo)
+[![CI](https://github.com/100mslive/memongo/workflows/Go/badge.svg)](https://github.com/100mslive/memongo/actions?workflow=Go) [![GoDoc](https://godoc.org/github.com/100mslive/memongo?status.svg)](https://godoc.org/github.com/100mslive/memongo) [![Go Report Card](https://goreportcard.com/badge/github.com/100mslive/memongo)](https://goreportcard.com/report/github.com/100mslive/memongo)
 
 > ***NOTE: This project started as a fork of [benweissmann/memongo project](https://github.com/benweissmann/memongo), but rapidly evolved to its own. While we thank and credit original creator for the job so far, we are going separate ways for the time being.***
 > 
@@ -109,7 +109,7 @@ Behind the scenes, when you run `Start()`, a few things are happening:
 
 The behavior of `memongo` can be controlled by using
 `memongo.StartWithOptions` instead of `memongo.Start`. See
-[the godoc](https://godoc.org/github.com/tryvium-travels/memongo) for all the options. Many options can also be set via environment variable.
+[the godoc](https://godoc.org/github.com/100mslive/memongo) for all the options. Many options can also be set via environment variable.
 
 A few common use-cases are covered here:
 

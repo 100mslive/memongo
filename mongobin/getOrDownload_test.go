@@ -6,13 +6,13 @@ import (
 	"os"
 	"testing"
 
+	"github.com/100mslive/memongo/memongolog"
+	"github.com/100mslive/memongo/mongobin"
+	"github.com/100mslive/memongo/mongobin/mockAfero"
 	"github.com/golang/mock/gomock"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tryvium-travels/memongo/memongolog"
-	"github.com/tryvium-travels/memongo/mongobin"
-	"github.com/tryvium-travels/memongo/mongobin/mockAfero"
 )
 
 func TestGetOrDownload(t *testing.T) {
