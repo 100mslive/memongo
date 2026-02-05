@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/100mslive/memongo/memongolog"
-	"github.com/100mslive/memongo/mongobin"
+	"github.com/100mslive/memongo/v2/memongolog"
+	"github.com/100mslive/memongo/v2/mongobin"
 )
 
 // Options is the configuration options for a launched MongoDB binary
@@ -19,6 +19,10 @@ type Options struct {
 	// ShouldUseReplica indicates whether a replica should be used. If this is not specified,
 	// no replica will be used and mongo server will be run as standalone.
 	ShouldUseReplica bool
+
+	// ReplicaSetName is the name of the replica set. Defaults to "rs0".
+	// Only used when ShouldUseReplica is true.
+	ReplicaSetName string
 
 	// Port to run MongoDB on. If this is not specified, a random (OS-assigned)
 	// port will be used
@@ -52,9 +56,20 @@ type Options struct {
 	// If set, pass the --auth flag to mongod. This will allow tests to setup
 	// authentication.
 	Auth bool
+
+	// WiredTigerCacheSizeGB sets the maximum size of the WiredTiger cache in GB.
+	// This is useful to limit memory usage in test environments.
+	// Only applies when using WiredTiger storage engine (MongoDB 7.0+ or replica sets).
+	// If not set, MongoDB uses its default (typically 50% of RAM minus 1GB).
+	WiredTigerCacheSizeGB float64
 }
 
 func (opts *Options) fillDefaults() error {
+	// Set default replica set name
+	if opts.ReplicaSetName == "" {
+		opts.ReplicaSetName = "rs0"
+	}
+
 	if opts.MongodBin == "" {
 		opts.MongodBin = os.Getenv("MEMONGO_MONGOD_BIN")
 	}
@@ -85,12 +100,17 @@ func (opts *Options) fillDefaults() error {
 			if opts.MongoVersion == "" {
 				return fmt.Errorf("one of MongoVersion, DownloadURL, or MongodBin must be given")
 			}
-			spec, err := mongobin.MakeDownloadSpec(opts.MongoVersion)
-			if err != nil {
-				return err
-			}
 
-			opts.DownloadURL = spec.GetDownloadURL()
+			// Auto-detect Apple Silicon and use x86_64 binary via Rosetta 2
+			if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+				opts.DownloadURL = getAppleSiliconDownloadURL(opts.MongoVersion)
+			} else {
+				spec, err := mongobin.MakeDownloadSpec(opts.MongoVersion)
+				if err != nil {
+					return err
+				}
+				opts.DownloadURL = spec.GetDownloadURL()
+			}
 		}
 	}
 
@@ -155,4 +175,13 @@ func getFreePort() (int, error) {
 	}
 	defer l.Close()
 	return l.Addr().(*net.TCPAddr).Port, nil
+}
+
+// getAppleSiliconDownloadURL returns the x86_64 macOS download URL for Apple Silicon Macs.
+// Apple Silicon can run x86_64 binaries via Rosetta 2.
+func getAppleSiliconDownloadURL(version string) string {
+	// For MongoDB 6.0+, native arm64 builds are available but may have issues,
+	// so we use x86_64 via Rosetta 2 for maximum compatibility.
+	// Format: https://fastdl.mongodb.org/osx/mongodb-macos-x86_64-VERSION.tgz
+	return fmt.Sprintf("https://fastdl.mongodb.org/osx/mongodb-macos-x86_64-%s.tgz", version)
 }

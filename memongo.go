@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"regexp"
@@ -13,22 +12,24 @@ import (
 	"strings"
 	"time"
 
-	"github.com/100mslive/memongo/memongolog"
-	"github.com/100mslive/memongo/monitor"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"github.com/100mslive/memongo/v2/memongolog"
+	"github.com/100mslive/memongo/v2/monitor"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 const mongoConnectionTemplate = "mongodb://localhost:%d/?directConnection=true"
 
 // Server represents a running MongoDB server
 type Server struct {
-	cmd        *exec.Cmd
-	watcherCmd *exec.Cmd
-	dbDir      string
-	logger     *memongolog.Logger
-	port       int
+	cmd            *exec.Cmd
+	watcherCmd     *exec.Cmd
+	dbDir          string
+	logger         *memongolog.Logger
+	port           int
+	isReplicaSet   bool
+	replicaSetName string
 }
 
 // Start runs a MongoDB server at a given MongoDB version using default options
@@ -58,7 +59,7 @@ func StartWithOptions(opts *Options) (*Server, error) {
 	logger.Debugf("Using binary %s", binPath)
 
 	// Create a db dir. Even the ephemeralForTest engine needs a dbpath.
-	dbDir, err := ioutil.TempDir("", "")
+	dbDir, err := os.MkdirTemp("", "memongo")
 	if err != nil {
 		return nil, err
 	}
@@ -69,28 +70,34 @@ func StartWithOptions(opts *Options) (*Server, error) {
 	args := []string{"--dbpath", dbDir, "--port", strconv.Itoa(opts.Port)}
 	if opts.ShouldUseReplica {
 		engine = "wiredTiger"
-		args = append(args, "--replSet", "rs0")
+		args = append(args, "--replSet", opts.ReplicaSetName)
 	} else if strings.HasPrefix(opts.MongoVersion, "7.") || strings.HasPrefix(opts.MongoVersion, "8.") {
 		engine = "wiredTiger"
 	}
 	if engine == "wiredTiger" {
 		args = append(args, "--bind_ip", "localhost")
+		// Apply WiredTiger cache size limit if specified
+		if opts.WiredTigerCacheSizeGB > 0 {
+			args = append(args, "--wiredTigerCacheSizeGB", strconv.FormatFloat(opts.WiredTigerCacheSizeGB, 'f', 2, 64))
+		}
 	}
 
 	if opts.Auth {
 		args = append(args, "--auth")
 		// A keyfile needs to be specified if auth and a replicaset are used
 		if opts.ShouldUseReplica {
-			tmpFile, err := ioutil.TempFile("", "keyfile")
+			tmpFile, err := os.CreateTemp("", "keyfile")
 			// This library is specifically intended for ephemeral mongo
 			// databases so we don't need a lot of security here, however
 			// if you're reading this file trying to figure out how to generate
 			// a keyfile, please see the official MongoDB documentation on how
 			// to do this correctly and securely for a production environment.
-			tmpFile.Write([]byte("insecurekeyfile"))
 			if err != nil {
 				return nil, err
 			}
+			_, _ = tmpFile.Write([]byte("insecurekeyfile"))
+			_ = tmpFile.Chmod(0400) // MongoDB requires keyfile to be readable only by owner
+			_ = tmpFile.Close()
 			args = append(args, "--keyFile", tmpFile.Name())
 		}
 	}
@@ -178,7 +185,7 @@ func StartWithOptions(opts *Options) (*Server, error) {
 	if opts.ShouldUseReplica {
 		ctx := context.Background()
 		connectionURL := fmt.Sprintf(mongoConnectionTemplate, opts.Port)
-		client, err := mongo.Connect(ctx, options.Client().ApplyURI(connectionURL))
+		client, err := mongo.Connect(options.Client().ApplyURI(connectionURL))
 		if err != nil {
 			logger.Warnf("error while connect to localhost database: %w", err)
 			return nil, err
@@ -207,11 +214,13 @@ func StartWithOptions(opts *Options) (*Server, error) {
 
 	// Return a Memongo server
 	return &Server{
-		cmd:        cmd,
-		watcherCmd: watcherCmd,
-		dbDir:      dbDir,
-		logger:     logger,
-		port:       port,
+		cmd:            cmd,
+		watcherCmd:     watcherCmd,
+		dbDir:          dbDir,
+		logger:         logger,
+		port:           port,
+		isReplicaSet:   opts.ShouldUseReplica,
+		replicaSetName: opts.ReplicaSetName,
 	}, nil
 }
 
@@ -250,6 +259,40 @@ func (s *Server) Stop() {
 		s.logger.Warnf("error removing data directory: %s", err)
 		return
 	}
+}
+
+// Ping checks if the MongoDB server is responsive.
+// It returns nil if the server is healthy, or an error if not.
+func (s *Server) Ping(ctx context.Context) error {
+	client, err := mongo.Connect(options.Client().ApplyURI(s.URI()))
+	if err != nil {
+		return fmt.Errorf("failed to connect: %w", err)
+	}
+	defer func() {
+		_ = client.Disconnect(ctx)
+	}()
+
+	return client.Ping(ctx, nil)
+}
+
+// IsReplicaSet returns true if the server was started as a replica set.
+func (s *Server) IsReplicaSet() bool {
+	return s.isReplicaSet
+}
+
+// ReplicaSetName returns the name of the replica set if the server was
+// started as a replica set, or an empty string otherwise.
+func (s *Server) ReplicaSetName() string {
+	if s.isReplicaSet {
+		return s.replicaSetName
+	}
+	return ""
+}
+
+// DBPath returns the path to the database directory.
+// This can be useful for debugging or diagnostics.
+func (s *Server) DBPath() string {
+	return s.dbDir
 }
 
 // Cribbed from https://github.com/nodkz/mongodb-memory-server/blob/master/packages/mongodb-memory-server-core/src/util/MongoInstance.ts#L206

@@ -4,7 +4,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/100mslive/memongo/mongobin"
+	"github.com/100mslive/memongo/v2/mongobin"
 	"github.com/stretchr/testify/require"
 )
 

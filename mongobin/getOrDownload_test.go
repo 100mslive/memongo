@@ -6,9 +6,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/100mslive/memongo/memongolog"
-	"github.com/100mslive/memongo/mongobin"
-	"github.com/100mslive/memongo/mongobin/mockAfero"
+	"github.com/100mslive/memongo/v2/memongolog"
+	"github.com/100mslive/memongo/v2/mongobin"
+	"github.com/100mslive/memongo/v2/mongobin/mockAfero"
 	"github.com/golang/mock/gomock"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"

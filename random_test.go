@@ -3,7 +3,7 @@ package memongo_test
 import (
 	"testing"
 
-	"github.com/100mslive/memongo"
+	"github.com/100mslive/memongo/v2"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -6,14 +6,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/100mslive/memongo"
-	"github.com/100mslive/memongo/memongolog"
+	"github.com/100mslive/memongo/v2"
+	"github.com/100mslive/memongo/v2/memongolog"
 
 	"github.com/stretchr/testify/require"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/mongo/readpref"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/mongo/readpref"
 )
 
 func TestDefaultOptions(t *testing.T) {
@@ -28,7 +28,7 @@ func TestDefaultOptions(t *testing.T) {
 			require.NoError(t, err)
 			defer server.Stop()
 
-			client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(server.URI()))
+			client, err := mongo.Connect(options.Client().ApplyURI(server.URI()))
 			require.NoError(t, err)
 
 			require.NoError(t, client.Ping(context.Background(), nil))
@@ -50,7 +50,7 @@ func TestWithReplica(t *testing.T) {
 			defer server.Stop()
 
 			uri := fmt.Sprintf("%s%s", server.URI(), "/retryWrites=false")
-			client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(uri))
+			client, err := mongo.Connect(options.Client().ApplyURI(uri))
 			if err != nil {
 				t.Logf("err Connect: %v", err)
 			}
@@ -74,7 +74,7 @@ func TestWithAuth(t *testing.T) {
 			require.NoError(t, err)
 			defer server.Stop()
 
-			client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(server.URI()))
+			client, err := mongo.Connect(options.Client().ApplyURI(server.URI()))
 			require.NoError(t, err)
 
 			require.NoError(t, client.Ping(context.Background(), nil))
@@ -91,7 +91,7 @@ func TestWithAuth(t *testing.T) {
 			require.NoError(t, res.Err())
 
 			// Verify we cannot connect without auth
-			client2, err := mongo.Connect(context.Background(), options.Client().ApplyURI(server.URI()))
+			client2, err := mongo.Connect(options.Client().ApplyURI(server.URI()))
 			require.NoError(t, err)
 
 			require.NoError(t, client2.Ping(context.Background(), nil))
@@ -109,7 +109,7 @@ func TestWithAuth(t *testing.T) {
 				Password:   "12345",
 				AuthSource: "admin",
 			}
-			client3, err := mongo.Connect(context.Background(), opts)
+			client3, err := mongo.Connect(opts)
 			require.NoError(t, err)
 
 			require.NoError(t, client3.Ping(context.Background(), nil))
@@ -134,7 +134,7 @@ func TestWithReplicaAndAuth(t *testing.T) {
 			defer server.Stop()
 
 			uri := fmt.Sprintf("%s%s", server.URI(), "/retryWrites=false")
-			client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(uri))
+			client, err := mongo.Connect(options.Client().ApplyURI(uri))
 			if err != nil {
 				t.Logf("err Connect: %v", err)
 			}
@@ -154,7 +154,7 @@ func TestWithReplicaAndAuth(t *testing.T) {
 			require.NoError(t, res.Err())
 
 			// Verify we cannot connect without auth
-			client2, err := mongo.Connect(context.Background(), options.Client().ApplyURI(server.URI()))
+			client2, err := mongo.Connect(options.Client().ApplyURI(server.URI()))
 			require.NoError(t, err)
 
 			require.NoError(t, client2.Ping(context.Background(), nil))
@@ -172,7 +172,7 @@ func TestWithReplicaAndAuth(t *testing.T) {
 				Password:   "12345",
 				AuthSource: "admin",
 			}
-			client3, err := mongo.Connect(context.Background(), opts)
+			client3, err := mongo.Connect(opts)
 			require.NoError(t, err)
 
 			require.NoError(t, client3.Ping(context.Background(), nil))
@@ -180,4 +180,67 @@ func TestWithReplicaAndAuth(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+}
+
+func TestServerPing(t *testing.T) {
+	server, err := memongo.StartWithOptions(&memongo.Options{
+		MongoVersion: "8.0.0",
+		LogLevel:     memongolog.LogLevelDebug,
+	})
+	require.NoError(t, err)
+	defer server.Stop()
+
+	// Test Ping method
+	err = server.Ping(context.Background())
+	require.NoError(t, err)
+}
+
+func TestServerHelperMethods(t *testing.T) {
+	server, err := memongo.StartWithOptions(&memongo.Options{
+		MongoVersion:     "8.0.0",
+		LogLevel:         memongolog.LogLevelWarn,
+		ShouldUseReplica: true,
+		ReplicaSetName:   "customRS",
+	})
+	require.NoError(t, err)
+	defer server.Stop()
+
+	// Test IsReplicaSet
+	require.True(t, server.IsReplicaSet())
+
+	// Test ReplicaSetName
+	require.Equal(t, "customRS", server.ReplicaSetName())
+
+	// Test DBPath returns a non-empty path
+	require.NotEmpty(t, server.DBPath())
+	require.Contains(t, server.DBPath(), "memongo")
+}
+
+func TestServerNotReplicaSet(t *testing.T) {
+	server, err := memongo.StartWithOptions(&memongo.Options{
+		MongoVersion: "8.0.0",
+		LogLevel:     memongolog.LogLevelWarn,
+	})
+	require.NoError(t, err)
+	defer server.Stop()
+
+	// Test IsReplicaSet returns false
+	require.False(t, server.IsReplicaSet())
+
+	// Test ReplicaSetName returns empty string
+	require.Empty(t, server.ReplicaSetName())
+}
+
+func TestWiredTigerCacheSize(t *testing.T) {
+	server, err := memongo.StartWithOptions(&memongo.Options{
+		MongoVersion:          "8.0.0",
+		LogLevel:              memongolog.LogLevelWarn,
+		WiredTigerCacheSizeGB: 0.25, // 256MB cache
+	})
+	require.NoError(t, err)
+	defer server.Stop()
+
+	// Verify server starts successfully with cache size limit
+	err = server.Ping(context.Background())
+	require.NoError(t, err)
 }
