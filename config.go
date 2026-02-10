@@ -101,16 +101,11 @@ func (opts *Options) fillDefaults() error {
 				return fmt.Errorf("one of MongoVersion, DownloadURL, or MongodBin must be given")
 			}
 
-			// Auto-detect Apple Silicon and use x86_64 binary via Rosetta 2
-			if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
-				opts.DownloadURL = getAppleSiliconDownloadURL(opts.MongoVersion)
-			} else {
-				spec, err := mongobin.MakeDownloadSpec(opts.MongoVersion)
-				if err != nil {
-					return err
-				}
-				opts.DownloadURL = spec.GetDownloadURL()
+			spec, err := mongobin.MakeDownloadSpec(opts.MongoVersion)
+			if err != nil {
+				return err
 			}
+			opts.DownloadURL = spec.GetDownloadURL()
 		}
 	}
 
@@ -177,11 +172,3 @@ func getFreePort() (int, error) {
 	return l.Addr().(*net.TCPAddr).Port, nil
 }
 
-// getAppleSiliconDownloadURL returns the x86_64 macOS download URL for Apple Silicon Macs.
-// Apple Silicon can run x86_64 binaries via Rosetta 2.
-func getAppleSiliconDownloadURL(version string) string {
-	// For MongoDB 6.0+, native arm64 builds are available but may have issues,
-	// so we use x86_64 via Rosetta 2 for maximum compatibility.
-	// Format: https://fastdl.mongodb.org/osx/mongodb-macos-x86_64-VERSION.tgz
-	return fmt.Sprintf("https://fastdl.mongodb.org/osx/mongodb-macos-x86_64-%s.tgz", version)
-}
