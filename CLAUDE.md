@@ -85,7 +85,7 @@ type Options struct {
 **Platform Support:**
 - macOS (darwin) x86_64 and arm64
 - Linux: Ubuntu, Debian, RHEL, SUSE, Amazon Linux
-- **Apple Silicon:** Auto-detected and uses x86_64 binary via Rosetta 2 (no manual configuration needed)
+- **Apple Silicon:** Auto-detected and uses native ARM64 MongoDB binaries (requires MongoDB 6.0+)
 
 ## Linting Rules
 
